@@ -1,0 +1,18 @@
+# Python virtual environments
+venv/
+.venv/
+__pycache__/
+
+# dbt logs and compiled target files
+target/
+dbt_packages/
+logs/
+
+# Mac system files
+.DS_Store
+
+# SQLite database file (keep local; dbt runs against it locally)
+*.sqlite
+*.db
+*.sqlite3
+hasbro_assessment.session.sql

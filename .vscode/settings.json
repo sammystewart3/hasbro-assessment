@@ -1,0 +1,11 @@
+{
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "name": "hasbro_assessment",
+            "database": "./sr_analytics_engineer_test.sqlite"
+        }
+    ],
+    "sqltools.useNodeRuntime": true
+}
