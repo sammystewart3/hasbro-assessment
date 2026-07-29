@@ -1,0 +1,24 @@
+version: 2
+
+sources:
+  - name: main
+    description: "Raw source database containing consumer product, commercial, marketing, and supply chain data."
+    tables:
+      # Consumer product, commercial, and marketing tables
+      - name: products_raw
+      - name: product_hierarchy_raw
+      - name: customers_raw
+      - name: sales_orders_raw
+      - name: retail_pos_raw
+      - name: marketing_campaigns_raw
+      - name: marketing_performance_raw
+      - name: taxonomy_lookup_raw
+
+      # Supply chain tables
+      - name: inventory_snapshots_raw
+      - name: warehouse_locations_raw
+      - name: suppliers_raw
+      - name: purchase_orders_raw
+      - name: shipments_raw
+      - name: shipment_events_raw
+      - name: carrier_performance_raw

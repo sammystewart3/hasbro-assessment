@@ -1,0 +1,24 @@
+name: 'supply_chain_dbt'
+version: '1.0.0'
+
+profile: 'supply_chain_dbt'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:        
+  - "target"
+  - "dbt_packages"
+
+
+# In this example config, we tell dbt to build all models as views. 
+# These settings can be overridden in the individual model
+# files using the `{{ config(...) }}` macro.
+models:
+  supply_chain_dbt:
+    +materialized: view
+

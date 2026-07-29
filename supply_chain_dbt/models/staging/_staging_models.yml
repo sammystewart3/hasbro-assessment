@@ -1,0 +1,526 @@
+version: 2
+
+models:
+  - name: stg_taxonomy_lookup
+    description: "Lookup table containing active mapping rules for standardizing raw values across domains such as products, supply chain, commercial, and enterprise."
+    columns:
+      - name: mapping_type
+        description: "The type of mapping rule being applied (e.g., sku_normalization, channel, region)."
+        tests:
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: raw_value
+        description: "The incoming unstandardized raw value from source systems."
+        tests:
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: standard_value
+        description: "The normalized, standard value to map the raw value into."
+        tests:
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: domain
+        description: "The business domain associated with the mapping rule."
+      - name: active_flag
+        description: "Flag indicating whether the mapping rule is active (Y/N)."
+      - name: effective_start_date
+        description: "The date from which the mapping rule becomes effective."
+
+  - name: stg_products
+    description: "Standardizes product metadata, cleans text formatting, handles cost datatypes, parses launch dates, and deduplicates source records based on the most recent updated_at timestamp per product_sku."
+    columns:
+      - name: product_sku
+        description: "The standardized primary product SKU (grain)."
+        tests:
+          - unique:
+              config:
+                severity: warn
+              arguments: {}
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: source_system
+        description: "The source system origin for the product record."
+      - name: alt_sku
+        description: "Alternative SKU identifier with dashes removed."
+      - name: product_name
+        description: "The name of the product."
+      - name: brand_family
+        description: "The brand family with whitespace removed."
+      - name: franchise
+        description: "The franchise name with whitespace removed."
+      - name: category
+        description: "The product category with normalized naming."
+      - name: sub_category
+        description: "The product sub-category classification."
+      - name: age_grade
+        description: "The target age grade representation."
+      - name: lifecycle_status
+        description: "The standardized uppercase product lifecycle status."
+      - name: launch_date
+        description: "Parsed launch date matching standardized date format."
+      - name: unit_cost
+        description: "Numeric unit cost with unknown values resolved to zero."
+      - name: unit_of_measure
+        description: "Standardized unit of measure via taxonomy lookup."
+
+  - name: stg_product_hierarchy
+    description: "Standardizes product hierarchy metadata, cleans text formatting, and deduplicates source records to keep only the latest effective start date per product_sku."
+    columns:
+      - name: product_sku
+        description: "The standardized product SKU (grain)."
+        tests:
+          - unique:
+              config:
+                severity: warn
+              arguments: {}
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: effective_start_date
+        description: "Start date of the hierarchy effectiveness window."
+        tests:
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: effective_end_date
+        description: "End date of the hierarchy effectiveness window if applicable."
+      - name: division
+        description: "The business division for the product."
+      - name: brand_family
+        description: "Standardized brand family."
+      - name: franchise
+        description: "Standardized franchise name."
+      - name: category
+        description: "Standardized category classification."
+      - name: sub_category
+        description: "Standardized sub-category classification."
+      - name: lifecycle_status
+        description: "Standardized lifecycle status."
+
+  - name: stg_customers
+    description: "Standardizes customer metadata (channel, region, country, tier), cleans text formatting, and resolves duplicate records for customer_id with specific exclusion rules."
+    columns:
+      - name: customer_id
+        description: "Unique identifier for the customer (grain)."
+        tests:
+          - unique:
+              config:
+                severity: warn
+              arguments: {}
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: customer_name
+        description: "Name of the customer."
+      - name: channel
+        description: "Standardized distribution channel via taxonomy lookup."
+      - name: region
+        description: "Standardized geographic region via taxonomy lookup."
+      - name: country
+        description: "Standardized country code via taxonomy lookup."
+      - name: tier
+        description: "Standardized uppercase customer tier with spaces removed."
+      - name: active_flag
+        description: "Active status flag for the customer."
+      - name: parent_customer_id
+        description: "Identifier for the parent customer entity if applicable."
+
+  - name: stg_sales_orders
+    description: "Standardizes sales orders metadata, SKUs, dates, status, currency, handles non-numeric ordered units by falling back to shipped units, and deduplicates by order and line ID."
+    columns:
+      - name: order_id
+        description: "The sales order identifier."
+        tests:
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: order_line_id
+        description: "The sales order line identifier (composite grain with order_id)."
+        tests:
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: customer_id
+        description: "Identifier of the customer placing the order."
+      - name: product_sku
+        description: "Standardized product SKU."
+      - name: order_date
+        description: "Date the order was placed."
+      - name: requested_ship_date
+        description: "Requested shipping date."
+      - name: ship_date
+        description: "Actual shipment date."
+      - name: order_status
+        description: "Standardized uppercase order status."
+      - name: ordered_units
+        description: "Quantity of units ordered."
+      - name: shipped_units
+        description: "Quantity of units shipped."
+      - name: unit_price
+        description: "Price per unit."
+      - name: currency
+        description: "Standardized uppercase currency code."
+      - name: cancel_reason
+        description: "Reason code if the order was cancelled."
+
+  - name: stg_retail_pos
+    description: "Standardizes retail POS metadata, cleans dates, handles missing on-hand units, and deduplicates retailer/SKU combinations by most recent week start date."
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - retailer_id
+            - week_start_date
+            - product_sku
+          config:
+            severity: warn
+    columns:
+      - name: retailer_id
+        description: "Identifier for the retailer (part of composite grain)."
+        tests:
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: week_start_date
+        description: "Start date of the POS reporting week (part of composite grain)."
+        tests:
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: product_sku
+        description: "Standardized product SKU (part of composite grain)."
+        tests:
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: store_count
+        description: "Number of stores reporting POS data."
+      - name: pos_units
+        description: "Point of sale units sold."
+      - name: pos_sales
+        description: "Point of sale revenue sales."
+      - name: on_hand_units
+        description: "Inventory units on hand, with blank rows defaulted to zero."
+      - name: on_order_units
+        description: "Inventory units on order."
+      - name: currency
+        description: "Standardized currency code."
+      - name: feed_date
+        description: "Date the POS feed was ingested."
+
+  - name: stg_marketing_campaigns
+    description: "Standardizes marketing campaigns metadata, cleans platforms, SKUs, regions, countries, budgets, and excludes campaigns with invalid or null start dates."
+    columns:
+      - name: campaign_id
+        description: "Unique identifier for the marketing campaign (grain)."
+        tests:
+          - unique:
+              config:
+                severity: warn
+              arguments: {}
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: campaign_name
+        description: "Name of the campaign."
+      - name: platform
+        description: "Standardized platform name with whitespace removed."
+      - name: campaign_start_date
+        description: "Start date of the campaign."
+        tests:
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: campaign_end_date
+        description: "End date of the campaign."
+      - name: product_sku
+        description: "Standardized product SKU."
+      - name: channel
+        description: "Conditional distribution channel (e.g., Paid Social when budget > 0)."
+      - name: region
+        description: "Standardized region via taxonomy lookup."
+      - name: country
+        description: "Standardized country via taxonomy lookup."
+      - name: objective
+        description: "Marketing campaign objective."
+      - name: budget
+        description: "Campaign budget with non-numeric values defaulted to zero."
+      - name: currency
+        description: "Standardized currency code."
+      - name: taxonomy_code
+        description: "Taxonomy tracking code."
+
+  - name: stg_marketing_performance
+    description: "Standardizes marketing performance daily metrics, cleans platforms, and parses performance dates, omitting records with missing performance dates."
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - campaign_id
+            - performance_date
+            - platform
+          config:
+            severity: warn
+    columns:
+      - name: performance_date
+        description: "Date of performance measurement (part of composite grain)."
+        tests:
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: campaign_id
+        description: "Campaign identifier (part of composite grain)."
+        tests:
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: platform
+        description: "Standardized advertising platform."
+      - name: impressions
+        description: "Total ad impressions."
+      - name: clicks
+        description: "Total ad clicks."
+      - name: video_views
+        description: "Total video views with blanks defaulted to zero."
+      - name: spend
+        description: "Total ad spend."
+      - name: conversions
+        description: "Total conversions resulting from ads."
+      - name: revenue
+        description: "Total revenue attributed."
+      - name: currency
+        description: "Standardized currency code."
+
+  - name: stg_inventory_snapshots
+    description: "Standardizes inventory snapshot dates, warehouse IDs, SKUs, UoMs, inventory status, replaces blank quantities with 0, and deduplicates identical snapshot rows."
+    columns:
+      - name: snapshot_date
+        description: "Date of the inventory snapshot (part of composite grain)."
+        tests:
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: warehouse_id
+        description: "Standardized warehouse identifier (part of composite grain)."
+        tests:
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: product_sku
+        description: "Standardized product SKU (part of composite grain)."
+        tests:
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: on_hand_qty
+        description: "Quantity of inventory on hand."
+      - name: allocated_qty
+        description: "Quantity of inventory allocated."
+      - name: available_qty
+        description: "Quantity of inventory available."
+      - name: in_transit_qty
+        description: "Quantity of inventory in transit."
+      - name: safety_stock_qty
+        description: "Safety stock quantity requirement."
+      - name: unit_of_measure
+        description: "Standardized unit of measure."
+      - name: inventory_status
+        description: "Standardized inventory status."
+
+  - name: stg_warehouse_locations
+    description: "Standardizes warehouse locations, excludes invalid WH001 records per audit notes, and standardizes country using taxonomy lookup."
+    columns:
+      - name: warehouse_id
+        description: "Unique warehouse identifier (grain)."
+        tests:
+          - unique:
+              config:
+                severity: warn
+              arguments: {}
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: warehouse_name
+        description: "Name of the warehouse location."
+      - name: warehouse_type
+        description: "Type/classification of the warehouse."
+      - name: region
+        description: "Geographic region."
+      - name: country
+        description: "Standardized country via taxonomy lookup."
+      - name: timezone
+        description: "Warehouse timezone."
+      - name: active_flag
+        description: "Active status flag."
+
+  - name: stg_suppliers
+    description: "Standardizes supplier records and resolves duplicate supplier_id conflicts by excluding conflicting alternate entries per audit notes."
+    columns:
+      - name: supplier_id
+        description: "Unique supplier identifier (grain)."
+        tests:
+          - unique:
+              config:
+                severity: warn
+              arguments: {}
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: supplier_name
+        description: "Name of the supplier."
+      - name: supplier_region
+        description: "Region where the supplier operates."
+      - name: country
+        description: "Standardized country via taxonomy lookup."
+      - name: preferred_flag
+        description: "Preferred supplier status flag."
+      - name: lead_time_days
+        description: "Supplier lead time in days."
+      - name: active_flag
+        description: "Active status flag."
+
+  - name: stg_purchase_orders
+    description: "Standardizes purchase orders metadata, SKUs, warehouses, statuses via taxonomy, and deduplicates records by PO and line ID."
+    columns:
+      - name: po_id
+        description: "Purchase order identifier."
+        tests:
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: po_line_id
+        description: "Purchase order line identifier (composite grain with po_id)."
+        tests:
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: supplier_id
+        description: "Identifier of the supplying vendor."
+      - name: product_sku
+        description: "Standardized product SKU."
+      - name: warehouse_id
+        description: "Standardized destination warehouse ID."
+      - name: po_create_date
+        description: "Date the purchase order was created."
+      - name: requested_delivery_date
+        description: "Requested delivery date."
+      - name: received_date
+        description: "Actual received date."
+      - name: po_status
+        description: "Standardized purchase order status."
+      - name: ordered_qty
+        description: "Quantity ordered."
+      - name: received_qty
+        description: "Quantity received."
+      - name: unit_cost
+        description: "Unit cost for the ordered item."
+      - name: currency
+        description: "Standardized currency code."
+
+  - name: stg_shipments
+    description: "Standardizes shipments metadata, SKUs, warehouses, shipment status capitalization, and deduplicates shipment records."
+    columns:
+      - name: shipment_id
+        description: "Unique shipment identifier (grain)."
+        tests:
+          - unique:
+              config:
+                severity: warn
+              arguments: {}
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: order_id
+        description: "Associated order identifier."
+      - name: customer_id
+        description: "Customer identifier."
+      - name: product_sku
+        description: "Standardized product SKU."
+      - name: warehouse_id
+        description: "Standardized origin warehouse ID."
+      - name: carrier_id
+        description: "Carrier identifier."
+      - name: ship_date
+        description: "Shipment dispatch date."
+      - name: delivery_date
+        description: "Shipment delivery date."
+      - name: shipment_status
+        description: "Standardized shipment status."
+      - name: shipped_units
+        description: "Units shipped."
+      - name: freight_cost
+        description: "Cost of freight."
+      - name: currency
+        description: "Standardized currency code."
+      - name: tracking_number
+        description: "Shipment tracking number."
+
+  - name: stg_shipment_events
+    description: "Standardizes shipment event timestamps using clean_date macro to safely handle bad or non-date timestamp strings."
+    columns:
+      - name: shipment_id
+        description: "Shipment identifier associated with the event."
+        tests:
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: event_timestamp
+        description: "Cleaned timestamp of the shipment event."
+      - name: event_type
+        description: "Type of shipment event (e.g., PICKED_UP, DELIVERED)."
+      - name: event_location
+        description: "Location where the event occurred."
+      - name: event_status
+        description: "Status of the event."
+
+  - name: stg_carrier_performance
+    description: "Standardizes carrier performance records and resolves duplicate carrier_id conflicts by filtering out conflicting service levels per audit notes."
+    columns:
+      - name: carrier_id
+        description: "Unique carrier identifier (grain)."
+        tests:
+          - unique:
+              config:
+                severity: warn
+              arguments: {}
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: carrier_name
+        description: "Name of the shipping carrier."
+      - name: service_level
+        description: "Carrier service level offering."
+      - name: region
+        description: "Operating region."
+      - name: contracted_transit_days
+        description: "Contracted transit time in days."
+      - name: active_flag
+        description: "Active status flag."
