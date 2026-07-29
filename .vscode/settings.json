@@ -1,11 +1,13 @@
 {
-    "sqltools.connections": [
-        {
-            "previewLimit": 50,
-            "driver": "SQLite",
-            "name": "hasbro_assessment",
-            "database": "./sr_analytics_engineer_test.sqlite"
-        }
-    ],
-    "sqltools.useNodeRuntime": true
+  "sqltools.connections": [
+    {
+      "name": "Hasbro SQLite",
+      "driver": "SQLite",
+      "database": "/Users/samuelstewart/Documents/hasbro_assessment/sr_analytics_engineer_test.sqlite"
+    }
+  ],
+  "editor.acceptSuggestionOnCommitCharacter": false,
+  "editor.acceptSuggestionOnEnter": "off",
+  "editor.inlineSuggest.enabled": false,
+  "editor.screenReaderAnnounceInlineSuggestion": false
 }

@@ -16,3 +16,11 @@ logs/
 *.db
 *.sqlite3
 hasbro_assessment.session.sql
+
+# pyenv
+v-hasbro/
+
+# vs code extensions
+.vscode/
+
+# db file (i am assuming others have same db copy)
