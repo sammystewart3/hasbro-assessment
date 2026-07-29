@@ -1,0 +1,100 @@
+version: 2
+
+models:
+  - name: op_commercial_sales
+    description: "Consolidated fact table containing both sales orders and POS transactions."
+    columns:
+      - name: transaction_id
+        description: "Unique event identifier."
+      - name: source_type
+        description: "Source system origin (SALES_ORDER or POS)."
+      - name: product_sku
+        description: "Product SKU associated with the sale."
+      - name: transaction_date
+        description: "Date of the transaction."
+      - name: units
+        description: "Total units involved in the transaction."
+      - name: gross_amount
+        description: "Total gross amount of the transaction."
+
+  - name: op_inventory_position
+    description: "Daily inventory metrics with calculated weeks-of-supply based on a 30-day rolling sales average."
+    columns:
+      - name: snapshot_date
+        description: "Snapshot date."
+      - name: warehouse_id
+        description: "Warehouse identifier."
+      - name: product_sku
+        description: "Product SKU."
+      - name: available_qty
+        description: "Available quantity in warehouse."
+      - name: weeks_of_supply
+        description: "Calculated weeks of inventory supply."
+
+  - name: op_shipment_fulfillment
+    description: "Shipment performance data including calculated transit/fulfillment duration."
+    columns:
+      - name: shipment_id
+        description: "Unique shipment identifier."
+        tests:
+          - unique:
+              config:
+                severity: warn
+              arguments: {}
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: fulfillment_duration_days
+        description: "Calculated days from pickup to delivery."
+
+  - name: op_inbound_supply
+    description: "Purchase order metrics focused on fulfillment variance and lag."
+    columns:
+      - name: po_id
+        description: "Purchase order identifier."
+      - name: qty_variance
+        description: "Difference between received and ordered quantities."
+      - name: delivery_lag_days
+        description: "Difference in days between requested and actual delivery date."
+
+  - name: op_marketing_performance
+    description: "Comprehensive marketing report joining campaign attributes with daily performance metrics."
+    columns:
+      - name: campaign_id
+        description: "Unique marketing campaign identifier."
+      - name: performance_date
+        description: "Date of performance measurement."
+      - name: spend
+        description: "Total marketing spend."
+      - name: impressions
+        description: "Total impressions generated."
+      - name: revenue
+        description: "Attributed revenue."
+
+  - name: op_unified_product_performance
+    description: "Wide mart for product-level analysis, integrating sales, inventory, and shipment data."
+    columns:
+      - name: product_sku
+        description: "Unique product SKU (grain)."
+        tests:
+          - unique:
+              config:
+                severity: warn
+              arguments: {}
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: total_units_sold
+        description: "Sum of units sold from commercial fact."
+      - name: total_inventory_available
+        description: "Sum of current inventory availability."
+      - name: total_units_shipped
+        description: "Sum of units shipped."
+      - name: total_marketing_spend
+        description: "Aggregated marketing spend for the product."
+      - name: total_marketing_clicks
+        description: "Aggregated marketing clicks for the product."
+      - name: total_marketing_conversions
+        description: "Aggregated marketing conversions for the product."
