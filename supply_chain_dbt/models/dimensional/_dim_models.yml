@@ -1,0 +1,138 @@
+version: 2
+
+models:
+  - name: dim_products
+    description: "Standardized product metadata linking products with hierarchy and lifecycle information."
+    columns:
+      - name: product_sku
+        description: "Primary identifier for the product (grain)."
+        tests:
+          - unique:
+              config:
+                severity: warn
+              arguments: {}
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: product_name
+        description: "Name of the product."
+      - name: brand_family
+        description: "Standardized brand family."
+      - name: franchise
+        description: "Standardized franchise name."
+      - name: category
+        description: "Standardized category."
+      - name: sub_category
+        description: "Standardized sub-category."
+      - name: age_grade
+        description: "Target age grade."
+      - name: division
+        description: "Business division."
+      - name: lifecycle_status
+        description: "Lifecycle status of the product."
+      - name: unit_cost
+        description: "Calculated unit cost."
+
+  - name: dim_customers
+    description: "Standardized customer records including channel, region, and country mapping."
+    columns:
+      - name: customer_id
+        description: "Unique customer identifier (grain)."
+        tests:
+          - unique:
+              config:
+                severity: warn
+              arguments: {}
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: customer_name
+        description: "Customer display name."
+      - name: channel
+        description: "Standardized sales channel."
+      - name: region
+        description: "Standardized region."
+      - name: country
+        description: "Standardized country."
+      - name: tier
+        description: "Standardized tier classification."
+      - name: active_flag
+        description: "Active customer indicator."
+
+  - name: dim_suppliers
+    description: "Standardized supplier information."
+    columns:
+      - name: supplier_id
+        description: "Unique supplier identifier (grain)."
+        tests:
+          - unique:
+              config:
+                severity: warn
+              arguments: {}
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: supplier_name
+        description: "Supplier entity name."
+      - name: country
+        description: "Standardized country."
+
+  - name: dim_warehouses
+    description: "Standardized warehouse location details."
+    columns:
+      - name: warehouse_id
+        description: "Unique warehouse identifier (grain)."
+        tests:
+          - unique:
+              config:
+                severity: warn
+              arguments: {}
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: warehouse_name
+        description: "Warehouse display name."
+      - name: country
+        description: "Standardized country."
+      - name: active_flag
+        description: "Warehouse active status."
+
+  - name: dim_carriers
+    description: "Standardized list of shipping carriers and their service offerings."
+    columns:
+      - name: carrier_id
+        description: "Unique carrier identifier (grain)."
+        tests:
+          - unique:
+              config:
+                severity: warn
+              arguments: {}
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: carrier_name
+        description: "Carrier display name."
+      - name: service_level
+        description: "Carrier service level."
+
+  - name: dim_dates
+    description: "Date scaffold covering the full range of transactional history."
+    columns:
+      - name: date_key
+        description: "Unique date key (grain)."
+        tests:
+          - unique:
+              config:
+                severity: warn
+              arguments: {}
+          - not_null:
+              config:
+                severity: warn
+              arguments: {}
+      - name: full_date
+        description: "The calendar date string."

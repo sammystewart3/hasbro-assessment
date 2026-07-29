@@ -6,35 +6,34 @@ Hasbro - Senior Analytics Engineer Take-Home Assessment
 
 ### Project Structure Overview
 
-Models: built in two phases
+Models: built in three phases.
 - First, the staging models (prefixed with stg_), which do basic cleanup & transormation of the _raw data tables.
     - I've used the taxonomy_lookup table where possible as a means of normalizing the dimensional data.
     - I've then layered on some additional ad hoc normalization steps to fill in some of the remaining gaps (including additional renaming/reclassification, data type formatting, string trimming/cleaning, basic de-duplication). 
-    - Specifics on all the additional assumptions/normalization steps I took for each staging model can be found at the end of this README. 
-- Second, the operational models (prefixed with op_), which are built from the staging models. The operational models handle the more complex transformation/synthesis/joining required for final consumption & analysis. 
+    - Specifics on all the additional assumptions/normalization steps I took for each staging model can be found in the `Data Quality Audit for Staging Models` section at the end of this README. 
+- Second, the dimensional models (prefixed with dim_), which are built from the staging models and are very similar to staging models in many respects -- the slight difference being the dim models are distilled down to truly unique rows per dimensional grain, and they also handle certain dimensional joins (such as joining products with product_hierarchy tables) to get a final, fully synthesized product-level dimension.
+    - See `Operational Models` section near the end of this README for more detail about each op model I've created.
+- Third, the operational models (prefixed with op_), which are built from the staging models + the dimensional models. The operational models handle the more complex transformation/synthesis/joining required for final consumption & analysis. 
 
-Tests: built in two phases, aligning with the model phases (stg vs op)
+Tests: built in two phases, to align with the staging and operational model phases.
 - For failed tests, for the time being I have set the default severity level to 'warn'...this is because I am still getting acclimated with the context surrounding teh data; ultimately I would want to level up the severity to 'fail' once these models were deployed to production...but first I need to understand WHY the ones that are failing are failing.
 - For now, depending on the specifics of the failure, failed tests will either require more troubleshooting on the back-end, OR would require further exploration across the company more broadly (i.e. checking w/ stakeholders abt what the flags actually mean and how to handle them moving forward).
 
-More detail on the specific tests can be found in the below `Tests` section.
-
-Follow-up questions for stakeholders stemming from these test outcomes can be found in the `Initital Questions` section.
-
-A summary of some of my initial takeaways, after looking at the synthesized data, can be found in the `Topline Takeaways` section.
+More detail on the specific tests can be found in the below `Tests` section. Follow-up questions for stakeholders stemming from these test outcomes can be found in the `Initital Questions` section. A summary of some of my initial takeaways, after looking at the synthesized data, can be found in the `Topline Takeaways` section.
 
 Notes on things I have NOT done in my project setup here (but would like to do in an ideal world): 
 - No CI/CD prod vs dev considerations - SQLite didn't immediately lend itself to this sort of set up.
-- Preferably I would partition the various models inside medallion architecture (i.e. staging models would be in bronze, maybe a silver layer, and final consumption-ready marts in gold), but I haven't done that here either, for similar SQLite related reasons (couldnt immediately figure out how to create diff db schema)...so instead I've just used consistent prefixes when naming models to identify what category they fall into (stg_ or op_).
+- Preferably I would partition the various models inside medallion architecture (i.e. staging models would be in bronze, maybe a silver layer with dimensional / op models, and final consumption-ready marts in gold), but I haven't done that here either, for similar SQLite related reasons (couldnt immediately figure out how to create diff db schema)...so instead I've just used consistent prefixes when naming models to identify what category they fall into (stg_ or op_).
 - Not worrying about linting / SQLFluff stuff for now, either.
 - I would like to create some more dbt macros, to handle some of the additional normalization/classification steps (at certain points I felt like my code was starting to get a bit verbose, model to model...)
 - Didn't have time to ensure fully-consistent decimal place conventions across all numeric fields.
+- There is a duplicate marketing cmapaign row in the marketing data that I didn't catch until just now. "CMP-001" campaign id is associated with both FaceSpace and Facebook. Initially I thought the same campaign could be run across different platforms, but I can see now the data is literally duplicated across the two platform rows, meaning that the Facebook one (I presume) should not be included here.
 
 
 
 ### Tests
 
-General testing approach: I used a mix of simple yml tests and more complex tests stored as custom sql in the tests subfolder. Both sets of tests are evaluated on `dbt build`.
+General testing approach: I used a mix of simple yml tests and more complex tests stored as custom sql in the tests folder. Both sets of tests are evaluated on `dbt build`.
 
 Staging models - simple tests:
 - Primary keys: Verified unique and non-null values for primary identifiers (product_sku, customer_id, campaign_id, shipment_id, etc.) across all core models.
@@ -59,36 +58,79 @@ Staging models - complex tests:
 
 
 Operational models - simple tests:
-- For 
+- Primary key integrity: enforced unique and not_null constraints on the primary identifiers of all dimension tables (e.g., product_sku, customer_id) to ensure a distinct, reliable grain.
+- Operational key tracking: applied unique and not_null constraints to core operational identifiers (like shipment_id and product_sku in the unified mart) to guarantee record-level consistency in final reporting.
+- Completeness checks: added not_null tests to mandatory fields across both dimension and fact layers to ensure essential data points (like dates and IDs) are always populated.
+- Standardized alerting: configured all tests with severity: warn to ensure data quality issues are surfaced for review without blocking production pipeline execution.
 
 Operational models - complex tests:
-- Orphan keys showing up anywhere (sku / taxonomy code / campaign / supplier etc)? Flag if true. 
-
+- Commercial sales integrity: monitors for non-sensical negative gross sales and validates referential integrity by flagging products in sales data that are missing from the master product dimension.
+- Inventory health: checks for negative available inventory balances and identifies "weeks-of-supply" outliers that indicate potential data entry errors or extreme stock anomalies.
+- Logistics performance: validates temporal consistency in shipment fulfillment by flagging records where delivery occurred before pickup and identifying shipments with unrealistically long fulfillment durations.
+- Inbound supply accuracy: ensures purchase order lifecycle validity by flagging receipts dated before order creation and highlighting significant quantity variances between ordered and received stock.
+- Marketing efficiency: monitors for performance anomalies, such as spend occurring without clicks or unrealistic ROI thresholds, to maintain data quality in marketing investment analysis.
+- Cross-domain consistency: validates data parity in the unified product performance mart, ensuring total product records are correctly accounted for across both commercial sales and inventory fact sets.
 
 
 ### Initial Questions
 
 Initial questions (stemming from any final tests that failed - ideally all these questions will be resolved before any final analysis is presented). 
 
-Staging questions:
-    - In marketing performance data, there's a row where clicks = -10 which doesn't make sense. How to handle this?
-    - In the inventory data, there's a row where the on-hand & available quantities are negative (-25 and -75, respectively). Is this possible, and if so, what does it mean?
+Staging Data Questions
+- `stg_inventory_snapshots` (inventory math): for WH-004/SKU-1004, our calculated inventory math (on_hand - allocated != available) doesn't balance (0 - 50 != 0). Should we re-verify how available_qty is calculated at the source?
+- `stg_inventory_snapshots` (negative snapshot): We have records showing negative inventory (on_hand_qty of -25) for WH-001/SKU-1005. Should inventory snapshots ever contain negative quantities?
+- `stg_marketing_performance` (engagement anomalies): Campaign CMP-001 shows -10 clicks despite having significant impressions and spend. How should we handle unrealistic values in marketing engagement metrics?
+- `stg_retail_pos` (negative POS): POS data for customer CUST-003 shows negative units (-5) and a negative gross amount of -99.95. Are these standard returns, or should we filter these out of our sales reporting?
+- `stg_purchase_orders` (PO timing): Purchase order PO-5003 for supplier SUP-003 was received on 2024-01-29, which is before the PO was created (2024-02-01). Should we investigate this receipt entry?
+- `stg_shipment_events` (sequencing): Shipment SHP-9003 shows a delivery timestamp (2024-02-28 08:00) that is earlier than the pickup timestamp (2024-02-28 12:00). Could this be a timezone or manual entry error?
+- `stg_shipments` (missing tracking): Shipment SHP-9005 is marked as 'Delivered' but has no tracking number provided. Is this expected for certain shipment types, or is the tracking number missing from the source?
 
-Operational questions: 
-
+Operational Data Questions
+- `op_commercial_sales` (Orphaned Products): Sales are being recorded for SKU SKU-8888 (order SO-10008), but this product does not exist in our master product dimension. Can you confirm if this is a valid SKU that needs to be added?
+- `op_unified_product_performance` (Cross-Domain Orphans): SKU SKU-9999 appears in the unified product mart but is missing from core commercial sales and inventory facts. Could you clarify the status of this "Legacy Item"?
 
 
 ### Topline Takeaways
 
-Topline takeaways: 
-    - Based on the data, I am seeing a couple major trends that stand out.
+Data Quality Observations (The Issues)
+- Systemic tracking gaps: discrepancies in shipment sequencing and missing tracking numbers suggest gaps in carrier data ingestion, while inbound PO records show receipt dates preceding creation, indicating workflow synchronization issues.
+- Inventory accuracy: recurring inventory math imbalances (on-hand - allocated != available) and negative quantity reporting suggest a need to tighten the sync between physical stock counts and ERP systems.
+- Marketing attribution: significant spending without corresponding engagement activity, combined with orphan product SKUs across domains, highlights critical vulnerabilities in our tracking and master data management processes.
+
+Business Performance Highlights (The Results)
+- High-performing product: SKU-1002 is our top performer with 330 units sold; despite only $1,800 in marketing spend, it has maintained strong conversion volume, making it our most efficient product by unit-to-spend ratio.
+- Marketing ROI leaders: the GG_Sprout_Awareness_Q1 campaign is driving the highest impact, generating 230 conversions on a $7,300 spend, significantly outperforming RoboRiver_Performance which yielded only 140 conversions on $3,200.
+- Sales vs spend disconnect: SKU-1001 has the highest marketing investment ($7,300), yet ranks only 3rd in unit sales (265 units), suggesting this product may be reaching a point of diminishing returns or requires a content refresh.
 
 
 
 ------------------------------------------------------------------
 ------------------------------------------------------------------
 
-### Raw Tables - Data Quality Audit for Staging Models
+
+### Operational Models
+
+`op_commercial_sales`
+- Unifies sales_orders and retail_pos into a single, analysis-ready fact table.
+- Tracks transaction volume and revenue across two key commercial sources.
+`op_inventory_position`
+- Monitors daily stock levels by warehouse.
+- Calculates "Weeks of Supply" using a 30-day rolling sales average to flag over/under-stock risks.
+`op_shipment_fulfillment`
+- Joins shipment headers with lifecycle events (picked, delivered).
+- Computes fulfillment speed (pick-to-delivery duration) per shipment.
+`op_inbound_supply`
+- Tracks inbound PO fulfillment.
+- Quantifies delivery lag (days from request) and inventory volume variance.
+`op_marketing_performance`
+- Bridges campaign metadata with daily engagement and conversion metrics.
+- Centralizes ROI analysis across platforms and regional campaigns.
+`op_unified_product_performance`
+- The "Master Mart": SKU-level view connecting sales, inventory availability, marketing performance, and shipping output.
+- Provides a consolidated dashboard for overall product health.
+
+
+### Data Quality Audit for Staging Models
 
 Here are some specific notes & assumptions about data quality issues that I found in the various raw data tables All of the logic & assumptions articulated below feed directly into the staging models themselves & effectively serve as the basis for the staging models. Fields are only mentioned below if they appeared problematic to me in some fashion (fields that looked good aren't mentioned and are just pulled through to the staging models verbatim). 
 
@@ -119,7 +161,6 @@ Here are some specific notes & assumptions about data quality issues that I foun
     - duplicate `product_sku` values in `product_hierarchy_raw` - diff start dates, one row has end date
         - resolution: use most recent `effective_start_date` - presumably this is the best info for that product (this is also the row with no end date provided, so this tracks)
 
-
 `customers_raw` 
 - formatting/classification issues: 
     - `customer_name` - there's a dupe customer ID row with two diff names, otherwise this field is fine
@@ -133,7 +174,6 @@ Here are some specific notes & assumptions about data quality issues that I foun
 - duplications & conflicts: 
     - duplicate customer_id CUST-006
         - resolution: no functional difference as far as i can tell between two dupe rows, and there is no date-related field to use as a tie-breaker; as such, somewhat arbitrarily, i take the row where customer_name is "Riverside Marketplace" (so model exclusion logic will just be `customer_name` != "Riverside Market Place")
-
 
 `sales_orders_raw` 
 -  formatting/classification issues: 
@@ -151,7 +191,6 @@ Here are some specific notes & assumptions about data quality issues that I foun
     - dupe order_ids
         - resolution: take row with most recent order date
 
-
 `retail_pos_raw` 
 - formatting/classification issues: 
     - `week_start_date` - date formatting inconsistent
@@ -163,7 +202,6 @@ Here are some specific notes & assumptions about data quality issues that I foun
 - duplications & conflicts: 
     - dupe retailer_id + product_sku combos (i.e. CUST-001 + SKU-1001 appears twice)
         - resolution: take row with most recent week_start_date 
-
 
 `marketing_campaigns_raw` 
 - formatting/classification issues: 
@@ -183,7 +221,6 @@ Here are some specific notes & assumptions about data quality issues that I foun
         - resolution: if value is blank, replace with 0 
 - duplications & conflicts: 
     - exclude rows where `campaign_start_date` is null - no valid data for these rows
-
 
 `marketing_performance_raw` 
 - formatting/classification issues: 
@@ -207,19 +244,16 @@ Here are some specific notes & assumptions about data quality issues that I foun
     - duplicate row for [2024-02-29 + WH-001 + SKU-1001]
         - resolution: rows are identical, so just do an overall DISTINCT ON for this particular model output (not the cleanest solution tbh but it will work for now)
 
-
 `warehouse_locations_raw` 
 - formatting/classification issues: 
     - `warehouse_id` - inconsistent, duplicate values
         - resolution: exclude row where warehouse_id = "WH001"
     - `country` - use taxonomy_lookup to standardize
 
-
 `suppliers_raw` 
 - formatting/classification issues: 
     - `supplier_id` - duplicate for SUP-004.
         - resolution: this is a band-aid/not a scalable fix, but i'm just excluding row where supplier_name = 'Delta Plastic Works' and just keeping 'Delta Plastics'...in this _particular_ case this resolves the issue.
-
 
 `purchase_orders_raw`
 - formatting/classification/dupe issues: 
