@@ -40,9 +40,9 @@ select
     coalesce(sales.total_units, 0) as total_units_sold,
     coalesce(inv.total_available, 0) as total_inventory_available,
     coalesce(ship.total_shipped, 0) as total_units_shipped,
-    coalesce(marketing.total_marketing_spend, 0) as total_marketing_spend,
-    coalesce(marketing.total_marketing_clicks, 0) as total_marketing_clicks,
-    coalesce(marketing.total_marketing_conversions, 0) as total_marketing_conversions
+    coalesce(marketing.total_marketing_spend, 0) as total_marketing_spend
+    --coalesce(marketing.total_marketing_clicks, 0) as total_marketing_clicks,
+    --coalesce(marketing.total_marketing_conversions, 0) as total_marketing_conversions
 from products
 left join sales on products.product_sku = sales.product_sku
 left join inv on products.product_sku = inv.product_sku

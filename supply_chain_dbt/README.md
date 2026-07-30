@@ -111,12 +111,14 @@ Business Performance Highlights (The Results)
 ### Operational Models
 
 `op_commercial_sales`
-- Unifies sales_orders and retail_pos into a single, analysis-ready fact table.
+- UNIONS sales_orders and retail_pos into a single, analysis-ready fact table.
+    - Double-check this methodology is appropriate - is there a chance that sales orders and retail POS data is duplicative?
 - Tracks transaction volume and revenue across two key commercial sources.
 
 `op_inventory_position`
 - Monitors daily stock levels by warehouse.
 - Calculates "Weeks of Supply" using a 30-day rolling sales average to flag over/under-stock risks.
+- NOTE: looks at most recent 30 day period only, using max(transaction_date) as anchor date.
 
 `op_shipment_fulfillment`
 - Joins shipment headers with lifecycle events (picked, delivered).
@@ -133,6 +135,7 @@ Business Performance Highlights (The Results)
 `op_unified_product_performance`
 - The "Master Mart": SKU-level view connecting sales, inventory availability, marketing performance, and shipping output.
 - Provides a consolidated dashboard for overall product health.
+- NOTE: marketing/shipping/sales dimensions that are more granular than SKU are NOT included here - measurements are aggregated by SKU.
 
 
 ### Data Quality Audit for Staging Models
