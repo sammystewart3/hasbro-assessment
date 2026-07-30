@@ -47,8 +47,11 @@ normalized as (
         end as inventory_status,
         -- dedupe: rank identical rows to keep distinct records
         row_number() over (
-            partition by i.snapshot_date, i.warehouse_id, i.product_sku
-            order by i.snapshot_date
+            partition by 
+             {{ clean_date('i.snapshot_date') }},
+                coalesce(tax_wh.standard_value, i.warehouse_id),
+                coalesce(tax_sku.standard_value, i.product_sku)
+            order by {{ clean_date('i.snapshot_date') }}
         ) as rn
 
     from raw_inventory as i
