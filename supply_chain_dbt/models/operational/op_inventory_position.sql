@@ -27,13 +27,13 @@ sales as (
         s.product_sku,
         sum(s.units) as total_units_sold
     from {{ ref('op_commercial_sales') }} s, max_date_cte m
-    where s.transaction_date >= date(m.last_txn_date, '-30 days')
+    --where s.transaction_date >= date(m.last_txn_date, '-30 days')
     group by 1
 )
 
 select 
     inv.*,
-    coalesce(s.total_units_sold / 30.0, 0) as avg_daily_sales,
+    --coalesce(s.total_units_sold / 30.0, 0) as avg_daily_sales,
     case 
         when coalesce(s.total_units_sold / 30.0, 0) > 0 
         then (inv.available_qty / (s.total_units_sold / 30.0)) / 7.0
